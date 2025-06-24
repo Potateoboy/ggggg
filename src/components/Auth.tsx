@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Trophy, Mail, Lock, User } from 'lucide-react';
+import { Trophy, Mail, Lock, User, CheckCircle } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -9,6 +9,7 @@ const Auth: React.FC = () => {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +21,11 @@ const Auth: React.FC = () => {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              username: username,
+            }
+          }
         });
 
         if (error) throw error;
@@ -37,6 +43,15 @@ const Auth: React.FC = () => {
             ]);
 
           if (profileError) throw profileError;
+
+          // Show email verification message
+          setShowEmailVerification(true);
+          
+          // Auto sign in after a short delay (simulating email verification)
+          setTimeout(() => {
+            setShowEmailVerification(false);
+            // The user will be automatically signed in via the auth state change
+          }, 3000);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -52,6 +67,34 @@ const Auth: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (showEmailVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="flex justify-center">
+              <CheckCircle className="h-16 w-16 text-green-600" />
+            </div>
+            <h2 className="mt-6 text-3xl font-bold text-gray-900">
+              Check Your Email
+            </h2>
+            <p className="mt-4 text-gray-600">
+              We've sent a verification email to <strong>{email}</strong>
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Please check your email and click the verification link to complete your registration.
+            </p>
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-800 text-sm">
+                🎉 Account created successfully! You'll be signed in automatically once verified.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
