@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Trophy, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Trophy, AlertCircle, ChevronDown } from 'lucide-react';
 
 interface Fixture {
   id: string;
@@ -26,6 +26,7 @@ const Fixtures: React.FC = () => {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGameweek, setSelectedGameweek] = useState(1);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetchFixtures();
@@ -138,6 +139,19 @@ const Fixtures: React.FC = () => {
     return predictions.find(p => p.fixture_id === fixtureId);
   };
 
+  const getGameweekStatus = (gameweek: number) => {
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0];
+    
+    // Rough estimation based on season start
+    const seasonStart = new Date('2025-08-16');
+    const weeksSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    
+    if (gameweek < weeksSinceStart) return 'completed';
+    if (gameweek === weeksSinceStart) return 'current';
+    return 'upcoming';
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -160,22 +174,77 @@ const Fixtures: React.FC = () => {
         <p className="text-gray-600 mt-2">Predict match scores to earn points (predictions close 1 hour before kickoff)</p>
       </div>
 
-      <div className="mb-6">
-        <label htmlFor="gameweek" className="block text-sm font-medium text-gray-700 mb-2">
-          Select Gameweek
-        </label>
-        <select
-          id="gameweek"
-          value={selectedGameweek}
-          onChange={(e) => setSelectedGameweek(Number(e.target.value))}
-          className="input-field max-w-xs"
-        >
-          {[...Array(38)].map((_, i) => (
-            <option key={i + 1} value={i + 1}>
-              Gameweek {i + 1}
-            </option>
-          ))}
-        </select>
+      {/* Sleeker Gameweek Selector */}
+      <div className="mb-8">
+        <div className="relative max-w-xs">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-between group"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                <span className="text-sm font-bold">{selectedGameweek}</span>
+              </div>
+              <div>
+                <div className="text-left">
+                  <div className="text-sm font-medium opacity-90">Gameweek</div>
+                  <div className="text-lg font-bold">Week {selectedGameweek}</div>
+                </div>
+              </div>
+            </div>
+            <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {dropdownOpen && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 max-h-80 overflow-y-auto z-50">
+              <div className="p-2">
+                {[...Array(38)].map((_, i) => {
+                  const gameweek = i + 1;
+                  const status = getGameweekStatus(gameweek);
+                  
+                  return (
+                    <button
+                      key={gameweek}
+                      onClick={() => {
+                        setSelectedGameweek(gameweek);
+                        setDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center justify-between group hover:bg-gray-50 ${
+                        selectedGameweek === gameweek ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          selectedGameweek === gameweek 
+                            ? 'bg-blue-600 text-white' 
+                            : status === 'completed' 
+                            ? 'bg-green-100 text-green-600'
+                            : status === 'current'
+                            ? 'bg-orange-100 text-orange-600'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {gameweek}
+                        </div>
+                        <span className="font-medium">Gameweek {gameweek}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          status === 'completed' 
+                            ? 'bg-green-100 text-green-600'
+                            : status === 'current'
+                            ? 'bg-orange-100 text-orange-600'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {status === 'completed' ? 'Done' : status === 'current' ? 'Live' : 'Soon'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -186,7 +255,7 @@ const Fixtures: React.FC = () => {
           const timeUntilDeadline = getTimeUntilDeadline(fixture.match_date);
 
           return (
-            <div key={fixture.id} className="card p-6">
+            <div key={fixture.id} className="card p-6 hover:shadow-lg transition-shadow duration-200">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
@@ -199,14 +268,14 @@ const Fixtures: React.FC = () => {
 
                 <div className="flex items-center space-x-4">
                   {prediction?.points_earned && (
-                    <div className="flex items-center space-x-1 text-green-600">
+                    <div className="flex items-center space-x-1 text-green-600 bg-green-50 px-3 py-1 rounded-full">
                       <Trophy className="h-4 w-4" />
                       <span className="text-sm font-medium">+{prediction.points_earned} points</span>
                     </div>
                   )}
                   
                   {!isCompleted && !canPredict && (
-                    <div className="flex items-center space-x-1 text-red-600">
+                    <div className="flex items-center space-x-1 text-red-600 bg-red-50 px-3 py-1 rounded-full">
                       <AlertCircle className="h-4 w-4" />
                       <span className="text-sm font-medium">Predictions closed</span>
                     </div>
@@ -215,9 +284,9 @@ const Fixtures: React.FC = () => {
               </div>
 
               {!isCompleted && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <Clock className="h-4 w-4 inline mr-1" />
+                <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800 flex items-center">
+                    <Clock className="h-4 w-4 inline mr-2" />
                     {timeUntilDeadline}
                   </p>
                 </div>
@@ -225,14 +294,14 @@ const Fixtures: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-8">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-gray-900">{fixture.home_team}</div>
+                  <div className="text-center min-w-[120px]">
+                    <div className="text-lg font-semibold text-gray-900 mb-1">{fixture.home_team}</div>
                     <div className="text-sm text-gray-500">Home</div>
                   </div>
 
                   <div className="flex items-center space-x-4">
                     {isCompleted ? (
-                      <div className="text-center">
+                      <div className="text-center bg-gray-50 px-6 py-3 rounded-lg">
                         <div className="text-2xl font-bold text-gray-900">
                           {fixture.home_score} - {fixture.away_score}
                         </div>
@@ -252,7 +321,7 @@ const Fixtures: React.FC = () => {
                             handlePrediction(fixture.id, homeScore, awayScore);
                           }}
                           disabled={!canPredict}
-                          className={`w-16 text-center input-field ${!canPredict ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                          className={`w-16 text-center input-field ${!canPredict ? 'bg-gray-100 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500'}`}
                           placeholder="0"
                         />
                         <span className="text-xl font-bold text-gray-400">-</span>
@@ -268,15 +337,15 @@ const Fixtures: React.FC = () => {
                             handlePrediction(fixture.id, homeScore, awayScore);
                           }}
                           disabled={!canPredict}
-                          className={`w-16 text-center input-field ${!canPredict ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                          className={`w-16 text-center input-field ${!canPredict ? 'bg-gray-100 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500'}`}
                           placeholder="0"
                         />
                       </div>
                     )}
                   </div>
 
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-gray-900">{fixture.away_team}</div>
+                  <div className="text-center min-w-[120px]">
+                    <div className="text-lg font-semibold text-gray-900 mb-1">{fixture.away_team}</div>
                     <div className="text-sm text-gray-500">Away</div>
                   </div>
                 </div>
@@ -284,8 +353,8 @@ const Fixtures: React.FC = () => {
 
               {prediction && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
-                    Your prediction: {prediction.predicted_home_score} - {prediction.predicted_away_score}
+                  <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
+                    <span className="font-medium">Your prediction:</span> {prediction.predicted_home_score} - {prediction.predicted_away_score}
                     {prediction.points_earned !== null && (
                       <span className="ml-2 text-green-600 font-medium">
                         (+{prediction.points_earned} points)
